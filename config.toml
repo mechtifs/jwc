@@ -1,0 +1,15 @@
+[client]
+delay = 0 # delay between each request (ms)
+parallel = 4 # number of parallel requests for each target
+keep = false # keep retrying even if target is already chosen
+verbose = true # print more information
+
+[summary]
+enabled = true # enable summary
+interval = 10 # interval between each summary (s)
+
+[session]
+user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36'
+base_uri = 'http://jwc.swjtu.edu.cn'
+credential = '0123456789ABCDEF0123456789ABCDEF'
+targets = ['B1234', 'B2345']
