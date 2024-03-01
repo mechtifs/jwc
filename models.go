@@ -1,5 +1,14 @@
 package main
 
+type StateType int
+
+const (
+	Failed StateType = iota
+	Success
+	Conflict
+	Overflowed
+)
+
 type ClientConfig struct {
 	Delay    int  `toml:"delay"`
 	Parallel int  `toml:"parallel"`
@@ -28,5 +37,5 @@ type Config struct {
 type Result struct {
 	CourseID string
 	TeachID  string
-	Success  bool
+	State    StateType
 }

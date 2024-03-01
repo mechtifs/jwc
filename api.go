@@ -56,6 +56,13 @@ func addCourse(courseID, teachID string) {
 	if config.Client.Verbose {
 		log.Println("[DEBUG]", text)
 	}
-	success := strings.Contains(text, "成功") || strings.Contains(text, "已选") || strings.Contains(text, "上限")
-	resCh <- &Result{CourseID: courseID, TeachID: teachID, Success: success}
+	var state StateType
+	if strings.Contains(text, "成功") || strings.Contains(text, courseID+"冲突") || strings.Contains(text, "已选该课程") {
+		state = Success
+	} else if strings.Contains(text, "冲突") {
+		state = Conflict
+	} else if strings.Contains(text, "上限") {
+		state = Overflowed
+	}
+	resCh <- &Result{CourseID: courseID, TeachID: teachID, State: state}
 }

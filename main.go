@@ -14,14 +14,13 @@ import (
 	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
-var total int
 var session *requests.Session
 var resCh chan *Result
 var gbkDecoder = simplifiedchinese.GBK.NewDecoder()
 var courseRe = regexp.MustCompile(`<span id="teachIdChoose.+?" style="display:none;">([0-9A-F]{16})<\/span>`)
 var config Config
 
-func showSummary(courses []string, retries int) {
+func showSummary(courses []string, total, retries int) {
 	fmt.Printf(" *** Course Selection Summary as of %s ***\n", time.Now().Format("Mon Jan _2 15:04:05 MST 2006"))
 	fmt.Println("================================================================================")
 	fmt.Printf("[%s %d/%d(%.2f%%) PAR:%d RE:%d]\n", config.Session.Credential, total-len(courses), total, float32(total-len(courses))/float32(total), runtime.NumGoroutine()-2, retries)
@@ -46,44 +45,64 @@ func parseConfig() {
 	}
 }
 
+func getIDs() ([]string, []string) {
+	var courseIDs, teachIDs []string
+	for _, target := range config.Session.Targets {
+		var teachID string
+		for {
+			teachID = queryCourse(target)
+			if teachID != "" {
+				break
+			}
+			time.Sleep(time.Duration(config.Client.Delay) * time.Millisecond)
+		}
+		if teachID == "0" {
+			continue
+		}
+		courseIDs = append(courseIDs, target)
+		teachIDs = append(teachIDs, teachID)
+	}
+	return courseIDs, teachIDs
+}
+
 func main() {
 	parseConfig()
-	courseIDs := config.Session.Targets
-	total = len(courseIDs)
-	log.Printf("[NOTICE] Choosing %d course(s)\n", total)
+	log.Printf("[NOTICE] Choosing %d course(s)\n", len(config.Session.Targets))
 	session = requests.NewSession(&requests.SessionOptions{
 		Header: map[string][]string{
 			"User-Agent": {config.Session.UserAgent},
 			"Cookie":     {"JSESSIONID=" + config.Session.Credential},
 		},
 	})
-	resCh = make(chan *Result, config.Client.Parallel*total)
-	for i := 0; i < config.Client.Parallel; i++ {
-		for _, courseID := range courseIDs {
-			for {
-				teachID := queryCourse(courseID)
-				if teachID != "" {
-					go addCourse(courseID, teachID)
-					break
-				}
-				if teachID == "0" {
-					break
-				}
-				time.Sleep(time.Duration(config.Client.Delay) * time.Millisecond)
-			}
+
+	courseIDs, teachIDs := getIDs()
+
+	total := len(courseIDs)
+	if total == 0 {
+		log.Println("[NOTICE] Nothing to do. Quitting...")
+		return
+	}
+
+	for range config.Client.Parallel {
+		for i, courseID := range courseIDs {
+			teachID := teachIDs[i]
+			go addCourse(courseID, teachID)
 		}
 	}
+
 	retries := 0
-	if config.Summary.Enabled {
+	if config.Summary.Enabled && config.Summary.Interval > 0 {
 		go func() {
 			for {
 				time.Sleep(time.Duration(config.Summary.Interval) * time.Second)
-				showSummary(courseIDs, retries)
+				showSummary(courseIDs, total, retries)
 			}
 		}()
 	}
+
+	resCh = make(chan *Result, config.Client.Parallel*total)
 	for res := range resCh {
-		if res.Success {
+		if res.State == Success || res.State == Conflict {
 			if !config.Client.Keep {
 				for i, courseID := range courseIDs {
 					if courseID == res.CourseID {
@@ -92,15 +111,23 @@ func main() {
 					}
 				}
 			}
-			log.Println("[NOTICE]", res, "may be already chosen.")
+			if res.State == Success {
+				log.Println("[NOTICE]", res.CourseID, "is already chosen.")
+			} else {
+				log.Println("[WARNING]", res.CourseID, "is in conflict with another course.")
+				total--
+			}
 			if len(courseIDs) == 0 {
 				log.Println("[NOTICE] Nothing to do. Quitting...")
 				break
 			}
-			continue
+		} else if res.State == Overflowed {
+			log.Println("[FATAL] Total credits overflowed. Quitting...")
+			break
+		} else {
+			retries++
+			time.Sleep(time.Duration(config.Client.Delay) * time.Millisecond)
+			go addCourse(res.CourseID, res.TeachID)
 		}
-		retries++
-		time.Sleep(time.Duration(config.Client.Delay) * time.Millisecond)
-		go addCourse(res.CourseID, res.TeachID)
 	}
 }

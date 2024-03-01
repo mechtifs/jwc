@@ -1,7 +1,7 @@
 [client]
 delay = 0 # delay between each request (ms)
 parallel = 4 # number of parallel requests for each target
-keep = false # keep retrying even if target is already chosen
+keep = false # keep retrying even if target is no longer available
 verbose = true # print more information
 
 [summary]
