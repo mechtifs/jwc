@@ -1,15 +1,14 @@
 package main
 
-type StateType int
+import (
+	"log"
+	"os"
 
-const (
-	Failed StateType = iota
-	Success
-	Conflict
-	Overflowed
+	"github.com/BurntSushi/toml"
 )
 
 type ClientConfig struct {
+	Mode     int  `toml:"mode"`
 	Delay    int  `toml:"delay"`
 	Parallel int  `toml:"parallel"`
 	Keep     bool `toml:"keep"`
@@ -34,8 +33,18 @@ type Config struct {
 	Session SessionConfig `toml:"session"`
 }
 
-type Result struct {
-	CourseID string
-	TeachID  string
-	State    StateType
+func parseConfig() {
+	if len(os.Args) == 1 {
+		log.Fatal("[FATAL] Please specify the path of config file.")
+	}
+
+	file, err := os.Open(os.Args[1])
+	if err != nil {
+		log.Fatal("[FATAL] Failed to open file:", err)
+	}
+	defer file.Close()
+	toml.NewDecoder(file).Decode(&config)
+	if config.Client.Verbose {
+		log.Println("[DEBUG]", config)
+	}
 }

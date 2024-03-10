@@ -1,6 +1,7 @@
 [client]
-delay = 0 # delay between each request (ms)
-parallel = 4 # number of parallel requests for each target
+mode = 1 # `0` for adding multiple courses, `1` for changing a single course
+delay = 5000 # delay between each request (ms)
+parallel = 5 # number of parallel requests for each target
 keep = false # keep retrying even if target is no longer available
 verbose = true # print more information
 
@@ -11,5 +12,5 @@ interval = 10 # interval between each summary (s)
 [session]
 user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36'
 base_uri = 'http://jwc.swjtu.edu.cn'
-credential = '0123456789ABCDEF0123456789ABCDEF'
-targets = ['B1234', 'B2345']
+credential = '0123456789ABCDEF0123456789ABCDEF' # JSESSIONID
+targets = ['B1234', 'B2345'] # when mode is set to `1`, targets should contain only two elements: [src, dst]
